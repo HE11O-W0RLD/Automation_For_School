@@ -8,14 +8,84 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 import time
 import random
-
+import re
 
 class Blooket_Crypto_Auto_Solver:
     
+    def click_12_buttons(self):
+        container = self.driver.find_element(By.CSS_SELECTOR, 'div.styles__buttonContainer___3XYeN-camelCase')#<div class="styles__buttonContainer___3XYeN-camelCase">
+        count = 0
+
+        while count < 12:
+            button = container.find_element(By.CSS_SELECTOR, 'div.styles__button___C94Th-camelCase[style*="opacity: 1;"]')#<div class="styles__button___C94Th-camelCase" role="button" tabindex="0" style="opacity: 1;">
+            if button is None:
+                no_click_button = container.find_element(By.CSS_SELECTOR, 'div.styles__button___C94Th-camelCase.styles__noClick___39ylx-camelCase')#<div class="styles__button___C94Th-camelCase styles__noClick___39ylx-camelCase" role="button" tabindex="0" style="opacity: 0;">
+                if no_click_button is None:
+                    self.check_if_game_ended()
+                    time.sleep(0.2)
+                    continue
+
+            button.click()
+            count += 1
+            button = None
+    
+    def repeat_the_pattern(self):
+        button_container = self.driver.find_element(By.CSS_SELECTOR, 'div.styles__buttonContainer___3XYeN-camelCase')
+        while True:
+            buttons = button_container.find_elements(By.CSS_SELECTOR, 'div.styles__button___C94Th-camelCase[role="button"]')
+            for button in buttons:
+                if 'styles__chosen___3pT3X-camelCase' in button.get_attribute('class'):
+                    continue
+                button.click()
+                time.sleep(0.1)
+                # Check if puzzle solved
+                if self.driver.find_elements(By.CSS_SELECTOR, 'div.arts__modal___VpEAD-camelCase'):
+                    return
+
+    def make_all_same_color(self):
+        pass
+    
+    def wait_until_hack_is_gone(self):
+        while True:
+            hack_element = self.driver.find_elements(By.CSS_SELECTOR, 'div.arts__modal___VpEAD-camelCase')#<div class="arts__modal___VpEAD-camelCase">
+            if hack_element:
+                time.sleep(0.1)
+                continue
+            else:
+                break
+    
+    def get_hack_type(self):
+        element = self.driver.find_element(By.CSS_SELECTOR, 'div.styles__desc___1Mg77-camelCase')#<div class="styles__desc___1Mg77-camelCase">Click 3 Buttons</div>
+        return element.text
+        
+    def solving_hacks(self):
+        hack_type= self.get_hack_type()
+        match hack_type:
+            case "Click 12 Buttons":
+                self.click_12_buttons()
+            case "Repeat the pattern":
+                self.repeat_the_pattern()
+            case "Make all buttons the same color":
+                self.make_all_same_color()
+            case "Find the matching cards":
+                self.find_matching_cards()
+            case re.match(r'Set the temperature to (\d+°)', argument) as match:
+                temperature = match.group(1)
+                self.set_the_temperature(temperature)
+            case "Complete the upload":
+                self.complete_the_upload()
+            case "Click the numbers from 1 to 10":
+                self.click_the_numbers()
+            case "Reorder the right colors to match left (click to swap right colors)":
+                self.reorder_the_colors()
+            case _:
+                raise Exception("Unknown hack found: Cannot solve")
+        self.wait_until_hack_is_gone()
+    
     def check_if_game_ended(self):
-        accuracy_element = self.driver.find_elements(By.XPATH, '//div[contains(text(), "Accuracy:")]') #The element searched here: <div class="styles__accuracyHeader___1MNLn-camelCase">Accuracy:</div>
+        end_of_game_element = self.driver.find_elements(By.CSS_SELECTOR, 'a.styles__headerRight___nPb83-camelCase[href="https://play.blooket.com/play"]') #The element searched here: <a class="styles__headerRight___nPb83-camelCase" href="https://play.blooket.com/play">Play Again</a>
             
-        if accuracy_element:
+        if end_of_game_element:
             time.sleep(5)
             raise Exception("Game ended")
     
@@ -24,7 +94,7 @@ class Blooket_Crypto_Auto_Solver:
             
             self.check_if_game_ended()
             
-            hack_element = self.driver.find_elements(By.XPATH, '//div[contains(text(), "HACKED:")]') #The element searched here: <div class="styles__header___3estK-camelCase">HACKED: sadfasdf (-49)</div>
+            hack_element = self.driver.find_elements(By.CSS_SELECTOR, 'div.arts__modal___VpEAD-camelCase') #The element searched here: <div class="arts__modal___VpEAD-camelCase">
             
             if not hack_element:
                 if self.hacked:
@@ -35,6 +105,7 @@ class Blooket_Crypto_Auto_Solver:
                 break
             else:
                 self.hacked=True
+                self.solving_hacks()
                 
             time.sleep(1)
     
@@ -57,10 +128,7 @@ class Blooket_Crypto_Auto_Solver:
         self.link = rf"https://play.blooket.com/play?id={id}"
         
     def init_driver(self):
-        chrome_options = webdriver.ChromeOptions()
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
-        self.driver = webdriver.Chrome(options=chrome_options)
+        self.driver = webdriver.Chrome()
         self.driver.get(self.link)
     
     def join_game(self):
@@ -69,10 +137,11 @@ class Blooket_Crypto_Auto_Solver:
             try:
                 name_input = self.driver.find_element(By.CSS_SELECTOR, 'input.styles__nameInput___20VdG-camelCase') #<input class="styles__nameInput___20VdG-camelCase" placeholder="Nickname" type="text" maxlength="15" value="" wfd-id="id0">
                 submit_button = self.driver.find_element(By.CSS_SELECTOR, 'div.styles__joinButton___2upCU-camelCase') #<div type="submit" role="button" class="styles__joinButton___2upCU-camelCase" tabindex="0"><i class="styles__joinIcon___2ctgb-camelCase fas fa-arrow-right" aria-hidden="true"></i></div>
-                self.check_if_something_wrong()
+                self.check_if_game_ended()
                 break
             except NoSuchElementException:
                 time.sleep(0.5)
+                self.check_if_game_ended()
         
         # Input the name into the input field
         name_input.send_keys(self.name)
@@ -450,11 +519,6 @@ class Blooket_Crypto_Auto_Solver:
             else:
                 print(f'Unexpected exception in "{self.__class__.__name__}" instance of "Blooket_Crypto_Auto_Solver" class: {e}')
         finally:
-            # Restore Chrome options to defaults
-            chrome_options = Options()
-            
-            # Create a new WebDriver instance with default options
-            self.driver = webdriver.Chrome(options=chrome_options)
             self.driver.quit()
 
 Crypto= Blooket_Crypto_Auto_Solver()
@@ -462,5 +526,3 @@ Crypto.mainloop()
 
 
 #doesnt proceed after right
-
-#Solving hax
