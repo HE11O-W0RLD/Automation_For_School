@@ -42,14 +42,138 @@ class Blooket_Crypto_Auto_Solver:
                 if self.driver.find_elements(By.CSS_SELECTOR, 'div.arts__modal___VpEAD-camelCase'):
                     return
 
-    def make_all_same_color(self):
-        pass
+    def make_all_same_color(self): #Check if the color order changes every time if so the function is broken
+        button_container = self.driver.find_element(By.CSS_SELECTOR, 'div.styles__buttonContainer___3XYeN-camelCase')
+        
+        square_buttons = button_container.find_elements(By.XPATH, '//div[contains(@style, "background-color: rgb(71, 209, 71);")]')
+        circle_buttons = button_container.find_elements(By.XPATH, '//div[contains(@style, "background-color: rgb(51, 133, 255);")]')
+        heart_buttons = button_container.find_elements(By.XPATH, '//div[contains(@style, "background-color: rgb(255, 51, 51);")]')
+        
+        for button in square_buttons:
+            button.click()
+            time.sleep(0.1) 
+            self.check_if_game_ended()
+        
+        for button in circle_buttons:
+            for _ in range(3):
+                button.click()
+                time.sleep(0.1)
+                self.check_if_game_ended()
+        
+        for button in heart_buttons:
+            for _ in range(2):
+                button.click()
+                time.sleep(0.1)  
+                self.check_if_game_ended()        
     
+    def find_matching_cards(self):
+        card_elements = self.driver.find_elements(By.CSS_SELECTOR, 'div.styles__button___C94Th-camelCase')
+        card_dict = {}
+        matching_cards = []
+
+        for element in card_elements:
+            img_element = element.find_element(By.CSS_SELECTOR, 'img.styles__blook___1R6So-camelCase')
+            img_src = img_element.get_attribute('alt')
+            if img_src in card_dict:
+                matching_cards.extend([element, card_dict[img_src]])
+            else:
+                card_dict[img_src] = element
+
+        for card in matching_cards:
+            card.click()
+            self.check_if_game_ended()
+    
+    def set_the_temperature(self, temperature):
+        self.check_if_game_ended()
+        
+        current_temperature_element = self.driver.find_element(By.CSS_SELECTOR, 'div.styles__temperature___3GYce-camelCase')
+        current_temperature = int(current_temperature_element.text[:-1])  
+        
+        target_temperature = int(temperature[:-1])  
+        
+        difference = target_temperature - current_temperature
+        is_negative = False
+        if difference < 0:
+            is_negative = True
+            difference = abs(difference)
+        
+        self.check_if_game_ended()
+        
+        for _ in range(difference):
+            if not is_negative:
+                #Click the > button to increase the temperature
+                button = self.driver.find_element(By.CSS_SELECTOR, 'div.styles__button___C94Th-camelCase:nth-child(3)')
+                button.click()
+            else:
+                #Click the < button to decrease the temperature
+                button = self.driver.find_element(By.CSS_SELECTOR, 'div.styles__button___C94Th-camelCase:nth-child(1)')
+                button.click()
+            time.sleep(0.05)
+        
+        self.check_if_game_ended()
+        
+    def complete_the_upload(self):
+        self.check_if_game_ended()
+        
+        start_button = self.driver.find_element(By.CSS_SELECTOR, 'div.styles__longButton___3h2eR-camelCase')
+        start_button.click()
+        
+        while True:
+            self.check_if_game_ended()
+            
+            hack_element = self.driver.find_elements(By.CSS_SELECTOR, 'div.arts__modal___VpEAD-camelCase')
+            if hack_element:
+                time.sleep(0.2)
+                continue
+            else:
+                break
+    
+    def click_the_numbers(self):
+        for i in range(1, 11):
+            button_xpath = f'//div[@class="styles__buttonInside___3If0V-camelCase" and text()="{i}"]'
+            button = self.driver.find_element(By.XPATH, button_xpath)
+            self.check_if_game_ended()
+            button.click()
+            time.sleep(0.05)
+            
+    def reorder_the_colors(self):
+        wire_rows = self.driver.find_elements(By.CSS_SELECTOR, 'div.styles__wireRow___3vwnr-camelCase')
+        for wire_row in wire_rows:
+            left_button = wire_row.find_element(By.CSS_SELECTOR, 'div.styles__button___C94Th-camelCase.styles__noClick___39ylx-camelCase')
+            left_button_color = left_button.value_of_css_property('background-color')
+
+            right_button = wire_row.find_element(By.CSS_SELECTOR, 'div.styles__button___C94Th-camelCase:not(.styles__noClick___39ylx-camelCase)')
+            right_button_color = right_button.value_of_css_property('background-color')
+
+            if left_button_color == right_button_color:
+                continue
+            found_button = None
+            for other_wire_row in wire_rows:
+                if other_wire_row != wire_row:
+                    other_right_button = other_wire_row.find_element(By.CSS_SELECTOR, 'div.styles__button___C94Th-camelCase:not(.styles__noClick___39ylx-camelCase)')
+                    other_right_button_color = other_right_button.value_of_css_property('background-color')
+                    
+                    if left_button_color == other_right_button_color:
+                        found_button = other_right_button
+                        break
+            if found_button is not None:
+                right_button.click()
+                time.sleep(0.1)
+                found_button.click()
+        self.check_if_game_ended()
+            
     def wait_until_hack_is_gone(self):
+        count=0
+        count_count=False
         while True:
             hack_element = self.driver.find_elements(By.CSS_SELECTOR, 'div.arts__modal___VpEAD-camelCase')#<div class="arts__modal___VpEAD-camelCase">
             if hack_element:
-                time.sleep(0.1)
+                time.sleep(0.5)
+                count= count+1
+                if count > 10:
+                    if count_count:
+                        raise Exception("Could not solve hack: Didnt dissappear in expected time")
+                    count_count=True
                 continue
             else:
                 break
@@ -90,12 +214,15 @@ class Blooket_Crypto_Auto_Solver:
             raise Exception("Game ended")
     
     def check_if_something_wrong(self):
+        count=0
         while True:
-            
+            count= count+1
+            if count >4:
+                raise Exception("Something went wrong while solving hacks")
             self.check_if_game_ended()
             
             hack_element = self.driver.find_elements(By.CSS_SELECTOR, 'div.arts__modal___VpEAD-camelCase') #The element searched here: <div class="arts__modal___VpEAD-camelCase">
-            
+            time.sleep(0.3)
             if not hack_element:
                 if self.hacked:
                     self.repeat_loop=True
@@ -106,8 +233,6 @@ class Blooket_Crypto_Auto_Solver:
             else:
                 self.hacked=True
                 self.solving_hacks()
-                
-            time.sleep(1)
     
     def repeat(self):
         if self.repeat_loop:
@@ -349,7 +474,7 @@ class Blooket_Crypto_Auto_Solver:
     def answer_was_true_reward_proceed(self, line_of_code_for_element_to_be_found):
         element_to_be_found = None
         while True:
-            while True:
+            while True:######GETS STUCK IN THIS
                 feedback_container = self.driver.find_elements(By.CSS_SELECTOR, 'div.styles__feedbackContainer___7PzgR-camelCase')#<div class="styles__feedbackContainer___7PzgR-camelCase" role="button" tabindex="0" style="outline: none; cursor: pointer;">
                 if feedback_container:
                     feedback_container[0].click()
@@ -442,7 +567,7 @@ class Blooket_Crypto_Auto_Solver:
             self.choose_random_pass()
     
     def check_if_pass_right(self):
-        while True:
+        while True: 
             correct_element = self.driver.find_element(By.XPATH, '//div[@class="styles__introHeader___Dzfym-camelCase" and text()="CORRECT"]')#<div class="styles__introHeader___Dzfym-camelCase" style="animation-delay: 2500ms; animation-duration: 1000ms;">CORRECT</div>
             incorrect_element = self.driver.find_element(By.XPATH, '//div[@class="styles__introHeader___Dzfym-camelCase" and text()="INCORRECT"]')#<div class="styles__introHeader___Dzfym-camelCase" style="animation-delay: 2500ms; animation-duration:1000ms; color:rgb(255, 51, 51);">INCORRECT</div>
 
@@ -525,4 +650,7 @@ Crypto= Blooket_Crypto_Auto_Solver()
 Crypto.mainloop()
 
 
-#doesnt proceed after right
+#iv.styles__introHeader___Dzfym-camelCase
+
+
+#the code continuously checks for correct+wrong answer proceed
